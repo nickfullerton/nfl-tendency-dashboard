@@ -51,13 +51,9 @@ def load_and_process_data():
 # Load data
 try:
     df = load_and_process_data()
-    st.sidebar.success(f"Loaded {len(df):,} plays")
 except Exception as e:
     st.error(f"Error loading data: {e}")
     st.stop()
-
-# Sidebar filters
-st.sidebar.header("Situational Filters")
 
 # Get unique values for filters
 all_teams = sorted(df['pff_OFFTEAM'].dropna().unique())
@@ -86,71 +82,119 @@ def sort_weeks(week_list):
     return [str(w) for w in numeric_weeks] + playoff_weeks_sorted
 
 all_weeks = sort_weeks(df['pff_WEEK'].dropna().astype(str).unique().tolist())
+min_time = int(df['minutes_remaining'].min())
+max_time = int(df['minutes_remaining'].max())
+min_ytg = int(df['pff_DISTANCE'].min())
+max_ytg = int(df['pff_DISTANCE'].max())
+min_yl = int(df['pff_YARDS_TO_GOAL_LINE'].min())
+max_yl = int(df['pff_YARDS_TO_GOAL_LINE'].max())
 
-# Team filter (single select)
+# Team filter (single select) - with session state
+if 'selected_team' not in st.session_state:
+    st.session_state['selected_team'] = all_teams[0] if len(all_teams) > 0 else None
+
+# Sidebar filters
+st.sidebar.header("Select Team")
 selected_team = st.sidebar.selectbox(
     "Select Team",
     options=all_teams,
-    index=0 if len(all_teams) > 0 else None
+    index=all_teams.index(st.session_state['selected_team']) if st.session_state['selected_team'] in all_teams else 0,
+    key='team_select'
 )
 
+# Update session state when team changes
+if selected_team != st.session_state.get('selected_team'):
+    st.session_state['selected_team'] = selected_team
+
+# Check if reset was triggered
+if st.session_state.get('reset_filters', False):
+    # Reset all filter states
+    st.session_state['weeks_multiselect'] = all_weeks
+    st.session_state['quarters_multiselect'] = all_quarters
+    st.session_state['time_slider'] = (min_time, max_time)
+    st.session_state['downs_multiselect'] = all_downs
+    st.session_state['ytg_slider'] = (min_ytg, max_ytg)
+    st.session_state['yardline_slider'] = (min_yl, max_yl)
+    # Clear the reset flag
+    st.session_state['reset_filters'] = False
+
+st.sidebar.header("Situational Filters")
+
 # Week filter (multi-select)
+if 'weeks_multiselect' not in st.session_state:
+    st.session_state['weeks_multiselect'] = all_weeks
+
 selected_weeks = st.sidebar.multiselect(
     "Select Week(s)",
     options=all_weeks,
-    default=all_weeks
+    key='weeks_multiselect'
 )
 
 # Quarter filter (multi-select)
+if 'quarters_multiselect' not in st.session_state:
+    st.session_state['quarters_multiselect'] = all_quarters
+
 selected_quarters = st.sidebar.multiselect(
     "Select Quarter(s)",
     options=all_quarters,
-    default=all_quarters
+    key='quarters_multiselect'
 )
 
 # Time remaining filter
 st.sidebar.subheader("Time Remaining in Quarter")
-min_time = int(df['minutes_remaining'].min())
-max_time = int(df['minutes_remaining'].max())
+if 'time_slider' not in st.session_state:
+    st.session_state['time_slider'] = (min_time, max_time)
+
 time_range = st.sidebar.slider(
     "Minutes Remaining",
     min_value=min_time,
     max_value=max_time,
-    value=(min_time, max_time),
-    step=1
+    step=1,
+    key='time_slider'
 )
 
 # Down filter (multi-select)
+if 'downs_multiselect' not in st.session_state:
+    st.session_state['downs_multiselect'] = all_downs
+
 selected_downs = st.sidebar.multiselect(
     "Select Down(s)",
     options=all_downs,
-    default=all_downs
+    key='downs_multiselect'
 )
 
 # Yards to go filter
 st.sidebar.subheader("Yards to Go")
-min_ytg = int(df['pff_DISTANCE'].min())
-max_ytg = int(df['pff_DISTANCE'].max())
+if 'ytg_slider' not in st.session_state:
+    st.session_state['ytg_slider'] = (min_ytg, max_ytg)
+
 yards_to_go_range = st.sidebar.slider(
     "Distance",
     min_value=min_ytg,
     max_value=max_ytg,
-    value=(min_ytg, max_ytg),
-    step=1
+    step=1,
+    key='ytg_slider'
 )
 
 # Yardline filter
 st.sidebar.subheader("Yardline (Yards to Goal)")
-min_yl = int(df['pff_YARDS_TO_GOAL_LINE'].min())
-max_yl = int(df['pff_YARDS_TO_GOAL_LINE'].max())
+if 'yardline_slider' not in st.session_state:
+    st.session_state['yardline_slider'] = (min_yl, max_yl)
+
 yardline_range = st.sidebar.slider(
     "Yards to Goal Line",
     min_value=min_yl,
     max_value=max_yl,
-    value=(min_yl, max_yl),
-    step=1
+    step=1,
+    key='yardline_slider'
 )
 
+# Reset Filters Button at the bottom
+st.sidebar.markdown("---")
+if st.sidebar.button("Reset Situational Filters", use_container_width=True):
+    st.session_state['reset_filters'] = True
+    st.rerun()
+    
 # Create filters dictionary
 filters = {
     'team': selected_team,
@@ -202,7 +246,7 @@ with tab1:
             return "-"
         
         # Display overall scorecards
-        st.subheader("Overall Tendencies")
+        st.subheader("Overall Offensive Tendencies")
         
         cols = st.columns(6)
         
