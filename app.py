@@ -13,7 +13,10 @@ from data_processing import (
     format_percentage_with_rank,
     calculate_defensive_overall_tendencies,
     calculate_defensive_category_tendencies,
-    calculate_all_teams_defensive_tendencies
+    calculate_all_teams_defensive_tendencies,
+    yardline_bucket_to_range,
+    ytg_bucket_to_range
+
 )
 
 # Page configuration
@@ -96,10 +99,11 @@ if 'selected_team' not in st.session_state:
 # Sidebar filters
 st.sidebar.header("Select Team")
 selected_team = st.sidebar.selectbox(
-    "Select Team",
+    "",
     options=all_teams,
     index=all_teams.index(st.session_state['selected_team']) if st.session_state['selected_team'] in all_teams else 0,
-    key='team_select'
+    key='team_select',
+    label_visibility="collapsed"
 )
 
 # Update session state when team changes
@@ -110,34 +114,38 @@ if selected_team != st.session_state.get('selected_team'):
 if st.session_state.get('reset_filters', False):
     # Reset all filter states
     st.session_state['weeks_multiselect'] = all_weeks
-    st.session_state['quarters_multiselect'] = all_quarters
+    st.session_state['quarters_segmented'] = [1, 2, 3, 4, 5]
     st.session_state['time_slider'] = (min_time, max_time)
-    st.session_state['downs_multiselect'] = all_downs
-    st.session_state['ytg_slider'] = (min_ytg, max_ytg)
-    st.session_state['yardline_slider'] = (min_yl, max_yl)
+    st.session_state['downs_segmented'] = [1, 2, 3, 4, 0]
+    st.session_state['ytg_segmented'] = ["1-2", "3-6", "7-10", "11+"]
+    st.session_state['yardline_segmented'] = ["Goal Line", "Low RZ", "High RZ", "Field", "Backed Up"]
     # Clear the reset flag
     st.session_state['reset_filters'] = False
 
-st.sidebar.header("Situational Filters")
-
+st.sidebar.header("Select Weeks")
 # Week filter (multi-select)
 if 'weeks_multiselect' not in st.session_state:
     st.session_state['weeks_multiselect'] = all_weeks
 
 selected_weeks = st.sidebar.multiselect(
-    "Select Week(s)",
+    "",
     options=all_weeks,
-    key='weeks_multiselect'
+    key='weeks_multiselect',
+    label_visibility="collapsed"
 )
 
+st.sidebar.subheader("Quarter")
 # Quarter filter (multi-select)
-if 'quarters_multiselect' not in st.session_state:
-    st.session_state['quarters_multiselect'] = all_quarters
+if 'quarters_segmented' not in st.session_state:
+    st.session_state['quarters_segmented'] = [1, 2, 3, 4, 5]
 
-selected_quarters = st.sidebar.multiselect(
-    "Select Quarter(s)",
-    options=all_quarters,
-    key='quarters_multiselect'
+selected_quarters = st.sidebar.segmented_control(
+    "",
+    options=[1, 2, 3, 4, 5],
+    format_func=lambda x: "OT" if x == 5 else str(x),
+    selection_mode="multi",
+    label_visibility="collapsed",
+    key="quarters_segmented"
 )
 
 # Time remaining filter
@@ -146,48 +154,57 @@ if 'time_slider' not in st.session_state:
     st.session_state['time_slider'] = (min_time, max_time)
 
 time_range = st.sidebar.slider(
-    "Minutes Remaining",
+    "",
     min_value=min_time,
     max_value=max_time,
     step=1,
-    key='time_slider'
+    key='time_slider',
+    label_visibility="collapsed"
 )
 
+st.sidebar.subheader("Down")
 # Down filter (multi-select)
-if 'downs_multiselect' not in st.session_state:
-    st.session_state['downs_multiselect'] = all_downs
+if 'downs_segmented' not in st.session_state:
+    st.session_state['downs_segmented'] = [1, 2, 3, 4, 0]
 
-selected_downs = st.sidebar.multiselect(
-    "Select Down(s)",
-    options=all_downs,
-    key='downs_multiselect'
+selected_downs = st.sidebar.segmented_control(
+    "",
+    options=[1,2,3,4,0],
+    format_func=lambda x: "K/2PT/PAT" if x == 0 else str(x),
+    selection_mode="multi",
+    label_visibility="collapsed",
+    key="downs_segmented"
 )
 
 # Yards to go filter
 st.sidebar.subheader("Yards to Go")
-if 'ytg_slider' not in st.session_state:
-    st.session_state['ytg_slider'] = (min_ytg, max_ytg)
+if 'ytg_segmented' not in st.session_state:
+    st.session_state['ytg_segmented'] = ["1-2", "3-6", "7-10", "11+"]
 
-yards_to_go_range = st.sidebar.slider(
-    "Distance",
-    min_value=min_ytg,
-    max_value=max_ytg,
-    step=1,
-    key='ytg_slider'
+ytg_buckets = st.sidebar.segmented_control(
+    "",
+    options=["1-2", "3-6", "7-10", "11+"],
+    selection_mode="multi",
+    label_visibility="collapsed",
+    key="ytg_segmented"
 )
+
+yards_to_go_range = ytg_bucket_to_range(ytg_buckets)
 
 # Yardline filter
-st.sidebar.subheader("Yardline (Yards to Goal)")
-if 'yardline_slider' not in st.session_state:
-    st.session_state['yardline_slider'] = (min_yl, max_yl)
+st.sidebar.subheader("Field Position")
+if 'yardline_segmented' not in st.session_state:
+    st.session_state['yardline_segmented'] = ["Goal Line", "Low RZ", "High RZ", "Field", "Backed Up"]
 
-yardline_range = st.sidebar.slider(
-    "Yards to Goal Line",
-    min_value=min_yl,
-    max_value=max_yl,
-    step=1,
-    key='yardline_slider'
+yardline_buckets = st.sidebar.segmented_control(
+    "",
+    options=["Goal Line", "Low RZ", "High RZ", "Field", "Backed Up"],
+    selection_mode="multi",
+    label_visibility="collapsed",
+    key="yardline_segmented"
 )
+
+yardline_range = yardline_bucket_to_range(yardline_buckets)
 
 # Reset Filters Button at the bottom
 st.sidebar.markdown("---")

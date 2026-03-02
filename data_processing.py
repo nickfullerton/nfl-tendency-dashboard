@@ -761,3 +761,43 @@ def calculate_all_teams_defensive_tendencies(df: pd.DataFrame, filters: Dict) ->
         })
     
     return pd.DataFrame(all_teams_data)
+
+# Convert to yards ranges
+def yardline_bucket_to_range(buckets):
+    """Convert selected buckets to yards to goal ranges"""
+    if not buckets:
+        return (1, 99)
+    
+    ranges = []
+    for bucket in buckets:
+        if bucket == "Goal Line":
+            ranges.extend(range(0, 5))  # 1-4
+        elif bucket == "Low RZ":
+            ranges.extend(range(5, 11))  # 5-10
+        elif bucket == "High RZ":
+            ranges.extend(range(11, 21))  # 11-20
+        elif bucket == "Field":
+            ranges.extend(range(21, 90))  # 21-89
+        elif bucket == "Backed Up":
+            ranges.extend(range(90, 100))  # 90+
+    
+    return (min(ranges), max(ranges))
+
+# Then convert buckets to actual filter ranges
+def ytg_bucket_to_range(buckets):
+    """Convert selected buckets to min/max yards"""
+    if not buckets:
+        return (0, 99)  # No selection = all
+    
+    ranges = []
+    for bucket in buckets:
+        if bucket == "1-2":
+            ranges.extend([0, 1, 2])
+        elif bucket == "3-6":
+            ranges.extend([3, 4, 5, 6])
+        elif bucket == "7-10":
+            ranges.extend([7, 8, 9, 10])
+        elif bucket == "11+":
+            ranges.extend(range(11, 100))
+    
+    return (min(ranges), max(ranges))
