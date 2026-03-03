@@ -34,6 +34,7 @@ def clean_data(df: pd.DataFrame) -> pd.DataFrame:
     """
     # Filter to only Pass (P) or Run (R) plays
     df_clean = df[df['pff_RUNPASS'].isin(['P', 'R'])].copy()
+    df_clean = df_clean[df_clean['pff_NOPLAY'] == 0]
     
     return df_clean
 
@@ -110,10 +111,18 @@ def add_calculated_columns(df: pd.DataFrame) -> pd.DataFrame:
     # Binary indicators for tendency calculations
     df['is_run'] = (df['pff_RUNPASS'] == 'R').astype(int)
     df['has_motion'] = df['pff_SHIFTMOTION'].notna().astype(int)
+    df['is_screen'] = df['pff_SCREEN'].fillna(0).astype(int)
     df['is_play_action'] = df['pff_PLAYACTION'].fillna(0).astype(int)
+
+    df['is_play_action'] = (
+        (df['is_play_action'] == 1) &
+        (df['pff_SCREEN'] == 0)
+    ).astype(int)
+
     df['is_standard_dropback'] = (
         (df['pff_DROPBACKTYPE'].isin(['SD', 'SR', 'SL'])) & 
-        (df['pff_PLAYACTION'] == 0)
+        (df['pff_PLAYACTION'] == 0) &
+        (df['pff_SCREEN'] == 0)
     ).astype(int)
 
     # Add defensive columns
@@ -197,6 +206,7 @@ def calculate_overall_tendencies(df: pd.DataFrame) -> Dict:
             'pa_pct': 0,
             'db_pct': 0,
             'motion_pct': 0,
+            'screen_pct': 0,
             'top_run_concepts': []
         }
     
@@ -205,6 +215,7 @@ def calculate_overall_tendencies(df: pd.DataFrame) -> Dict:
     pa_pct = (df['is_play_action'].sum() / total_plays) * 100
     db_pct = (df['is_standard_dropback'].sum() / total_plays) * 100
     motion_pct = (df['has_motion'].sum() / total_plays) * 100
+    screen_pct = (df['is_screen'].sum() / total_plays) * 100
     
     # Get top 3 run concepts
     run_plays = df[df['is_run'] == 1]
@@ -215,13 +226,13 @@ def calculate_overall_tendencies(df: pd.DataFrame) -> Dict:
         for concept, count in run_concept_counts.head(3).items():
             pct = (count / len(run_plays)) * 100
             top_run_concepts.append(f"{concept} ({pct:.1f}%)")
-    
     return {
         'total_plays': total_plays,
         'run_pct': run_pct,
         'pa_pct': pa_pct,
         'db_pct': db_pct,
         'motion_pct': motion_pct,
+        'screen_pct': screen_pct,
         'top_run_concepts': top_run_concepts
     }
 
@@ -256,6 +267,7 @@ def calculate_category_tendencies(df: pd.DataFrame, category_column: str) -> pd.
         pa_pct = (group['is_play_action'].sum() / category_plays) * 100 if category_plays > 0 else 0
         db_pct = (group['is_standard_dropback'].sum() / category_plays) * 100 if category_plays > 0 else 0
         motion_pct = (group['has_motion'].sum() / category_plays) * 100 if category_plays > 0 else 0
+        screen_pct = (group['is_screen'].sum() / category_plays) * 100 if category_plays > 0 else 0
         
         # Get top 3 run concepts for this category
         run_plays = group[group['is_run'] == 1]
@@ -275,6 +287,7 @@ def calculate_category_tendencies(df: pd.DataFrame, category_column: str) -> pd.
             'PA_Pct': pa_pct,
             'DB_Pct': db_pct,
             'Motion_Pct': motion_pct,
+            'Screen_Pct': screen_pct,
             'Top_Run_Concepts': '\n'.join(top_run_concepts) if top_run_concepts else ''
         })
     
@@ -355,7 +368,8 @@ def calculate_all_teams_tendencies(df: pd.DataFrame, filters: Dict, category_col
             'Run_Pct': (team_df['is_run'].sum() / total_plays) * 100,
             'PA_Pct': (team_df['is_play_action'].sum() / total_plays) * 100,
             'DB_Pct': (team_df['is_standard_dropback'].sum() / total_plays) * 100,
-            'Motion_Pct': (team_df['has_motion'].sum() / total_plays) * 100
+            'Motion_Pct': (team_df['has_motion'].sum() / total_plays) * 100,
+            'Screen_Pct': (team_df['is_screen'].sum() / total_plays) * 100
         }
         
         all_teams_data.append(overall_metrics)
@@ -516,37 +530,21 @@ def add_defensive_columns(df: pd.DataFrame) -> pd.DataFrame:
         DataFrame with defensive columns added
     """
     df = df.copy()
-
+    
     # Normalize coverage names
     df['pff_PASS_COVERAGE_NORMALIZED'] = df['pff_PASS_COVERAGE_BASIC'].apply(normalize_coverage)
     
-    # Parse number of pass rushers
-    df['num_pass_rushers'] = df['pff_PASSRUSHPLAYERS'].apply(parse_pass_rushers)
-    
-    # Parse number of pass rushers (keep for potential future use)
-    df['num_pass_rushers'] = df['pff_PASSRUSHPLAYERS'].apply(parse_pass_rushers)
-    
-    # Binary: Is blitz (from pff_BLITZDOG column, only on pass plays)
+    # Binary: Is blitz (from pff_BLITZDOG column, across ALL plays)
     df['is_blitz'] = (df['pff_BLITZDOG'] == 1).astype(int)
     
-    # Binary: Is man coverage
+    # Binary: Is MOFO shown (Middle of Field Open - what defense shows pre-snap, across ALL plays)
+    df['is_mofo'] = (df['pff_MOFOCSHOWN'] == 'O').astype(int)
+    
+    # Binary: Is stunt (defensive line stunt, across ALL plays)
+    df['is_stunt'] = (df['pff_STUNT'] == 1).astype(int)
+    
+    # Binary: Is man coverage (pass plays only)
     df['is_man_coverage'] = df['pff_PASS_COVERAGE_BASIC'].apply(is_man_coverage).astype(int)
-    
-    # Binary: Is MOFO (Middle of Field Open)
-    df['is_mofo'] = (df['pff_MOFOCPLAYED'] == 'O').astype(int)
-    
-    # Binary: Is disguise (MOFOCSHOWN != MOFOCPLAYED, both not null)
-    df['is_disguise'] = (
-        (df['pff_MOFOCSHOWN'].notna()) & 
-        (df['pff_MOFOCPLAYED'].notna()) & 
-        (df['pff_MOFOCSHOWN'] != df['pff_MOFOCPLAYED'])
-    ).astype(int)
-    
-    # Binary: Has valid MOFO data (for disguise denominator)
-    df['has_mofo_data'] = (
-        (df['pff_MOFOCSHOWN'].notna()) & 
-        (df['pff_MOFOCPLAYED'].notna())
-    ).astype(int)
     
     return df
 
@@ -554,7 +552,6 @@ def add_defensive_columns(df: pd.DataFrame) -> pd.DataFrame:
 def calculate_defensive_overall_tendencies(df: pd.DataFrame) -> Dict:
     """
     Calculate overall defensive team tendencies for scorecard display.
-    Metrics calculated against pass plays only.
     
     Args:
         df: Filtered DataFrame for selected team (defensive perspective)
@@ -566,29 +563,29 @@ def calculate_defensive_overall_tendencies(df: pd.DataFrame) -> Dict:
     pass_plays = df[df['pff_RUNPASS'] == 'P']
     total_pass_plays = len(pass_plays)
     
-    if total_pass_plays == 0:
+    if total_plays == 0:
         return {
-            'total_plays': total_plays,
-            'blitz_pct': 0,
-            'man_pct': 0,
+            'total_plays': 0,
             'mofo_pct': 0,
-            'disguise_pct': 0,
+            'blitz_pct': 0,
+            'stunt_pct': 0,
+            'man_pct': 0,
             'top_coverages': []
         }
     
-    # Calculate percentages (all against pass plays)
-    blitz_pct = (pass_plays['is_blitz'].sum() / total_pass_plays) * 100
-    man_pct = (pass_plays['is_man_coverage'].sum() / total_pass_plays) * 100
-    mofo_pct = (pass_plays['is_mofo'].sum() / total_pass_plays) * 100
+    # Calculate percentages
+    # MOFO, Blitz, Stunt: all plays
+    mofo_pct = (df['is_mofo'].sum() / total_plays) * 100
+    blitz_pct = (df['is_blitz'].sum() / total_plays) * 100
+    stunt_pct = (df['is_stunt'].sum() / total_plays) * 100
     
-    # Disguise: only count plays with valid MOFO data
-    pass_plays_with_mofo = pass_plays[pass_plays['has_mofo_data'] == 1]
-    if len(pass_plays_with_mofo) > 0:
-        disguise_pct = (pass_plays_with_mofo['is_disguise'].sum() / len(pass_plays_with_mofo)) * 100
+    # Man coverage: pass plays only
+    if total_pass_plays > 0:
+        man_pct = (pass_plays['is_man_coverage'].sum() / total_pass_plays) * 100
     else:
-        disguise_pct = 0
+        man_pct = 0
     
-    # Get top 3 coverages
+    # Get top 3 coverages (pass plays only)
     top_coverages = []
     if total_pass_plays > 0:
         coverage_counts = pass_plays['pff_PASS_COVERAGE_NORMALIZED'].value_counts()
@@ -598,10 +595,10 @@ def calculate_defensive_overall_tendencies(df: pd.DataFrame) -> Dict:
     
     return {
         'total_plays': total_plays,
-        'blitz_pct': blitz_pct,
-        'man_pct': man_pct,
         'mofo_pct': mofo_pct,
-        'disguise_pct': disguise_pct,
+        'blitz_pct': blitz_pct,
+        'stunt_pct': stunt_pct,
+        'man_pct': man_pct,
         'top_coverages': top_coverages
     }
 
@@ -635,24 +632,18 @@ def calculate_defensive_category_tendencies(df: pd.DataFrame, category_column: s
         # Calculate percentages
         usage_pct = (category_plays / total_team_plays) * 100
         
-        if total_pass_plays > 0:
-            blitz_pct = (pass_plays['is_blitz'].sum() / total_pass_plays) * 100
-            man_pct = (pass_plays['is_man_coverage'].sum() / total_pass_plays) * 100
-            mofo_pct = (pass_plays['is_mofo'].sum() / total_pass_plays) * 100
-            
-            # Disguise: only count plays with valid MOFO data
-            pass_plays_with_mofo = pass_plays[pass_plays['has_mofo_data'] == 1]
-            if len(pass_plays_with_mofo) > 0:
-                disguise_pct = (pass_plays_with_mofo['is_disguise'].sum() / len(pass_plays_with_mofo)) * 100
-            else:
-                disguise_pct = 0
-        else:
-            blitz_pct = 0
-            man_pct = 0
-            mofo_pct = 0
-            disguise_pct = 0
+        # MOFO, Blitz, Stunt: all plays
+        mofo_pct = (group['is_mofo'].sum() / category_plays) * 100 if category_plays > 0 else 0
+        blitz_pct = (group['is_blitz'].sum() / category_plays) * 100 if category_plays > 0 else 0
+        stunt_pct = (group['is_stunt'].sum() / category_plays) * 100 if category_plays > 0 else 0
         
-        # Get top 3 coverages for this category
+        # Man coverage: pass plays only
+        if total_pass_plays > 0:
+            man_pct = (pass_plays['is_man_coverage'].sum() / total_pass_plays) * 100
+        else:
+            man_pct = 0
+        
+        # Get top 3 coverages for this category (pass plays only)
         top_coverages = []
         if total_pass_plays > 0:
             coverage_counts = pass_plays['pff_PASS_COVERAGE_NORMALIZED'].value_counts()
@@ -664,10 +655,10 @@ def calculate_defensive_category_tendencies(df: pd.DataFrame, category_column: s
             'Category': category,
             'Plays': category_plays,
             'Usage_Pct': usage_pct,
-            'Blitz_Pct': blitz_pct,
-            'Man_Pct': man_pct,
             'MOFO_Pct': mofo_pct,
-            'Disguise_Pct': disguise_pct,
+            'Blitz_Pct': blitz_pct,
+            'Stunt_Pct': stunt_pct,
+            'Man_Pct': man_pct,
             'Top_Coverages': '\n'.join(top_coverages) if top_coverages else ''
         })
     
@@ -736,28 +727,24 @@ def calculate_all_teams_defensive_tendencies(df: pd.DataFrame, filters: Dict) ->
         pass_plays = team_df[team_df['pff_RUNPASS'] == 'P']
         total_pass_plays = len(pass_plays)
         
-        if total_pass_plays == 0:
-            continue
+        # MOFO, Blitz, Stunt: all plays
+        mofo_pct = (team_df['is_mofo'].sum() / total_plays) * 100
+        blitz_pct = (team_df['is_blitz'].sum() / total_plays) * 100
+        stunt_pct = (team_df['is_stunt'].sum() / total_plays) * 100
         
-        # Overall metrics
-        blitz_pct = (pass_plays['is_blitz'].sum() / total_pass_plays) * 100
-        man_pct = (pass_plays['is_man_coverage'].sum() / total_pass_plays) * 100
-        mofo_pct = (pass_plays['is_mofo'].sum() / total_pass_plays) * 100
-        
-        # Disguise
-        pass_plays_with_mofo = pass_plays[pass_plays['has_mofo_data'] == 1]
-        if len(pass_plays_with_mofo) > 0:
-            disguise_pct = (pass_plays_with_mofo['is_disguise'].sum() / len(pass_plays_with_mofo)) * 100
+        # Man coverage: pass plays only
+        if total_pass_plays > 0:
+            man_pct = (pass_plays['is_man_coverage'].sum() / total_pass_plays) * 100
         else:
-            disguise_pct = 0
+            man_pct = 0
         
         all_teams_data.append({
             'Team': team,
             'Total_Plays': total_plays,
-            'Blitz_Pct': blitz_pct,
-            'Man_Pct': man_pct,
             'MOFO_Pct': mofo_pct,
-            'Disguise_Pct': disguise_pct
+            'Blitz_Pct': blitz_pct,
+            'Stunt_Pct': stunt_pct,
+            'Man_Pct': man_pct
         })
     
     return pd.DataFrame(all_teams_data)

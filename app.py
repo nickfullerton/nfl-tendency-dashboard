@@ -246,7 +246,7 @@ with tab1:
         
         # Calculate rankings for overall metrics
         team_overall = all_teams_tendencies[all_teams_tendencies['Team'] == selected_team].iloc[0] if len(all_teams_tendencies[all_teams_tendencies['Team'] == selected_team]) > 0 else None
-        
+    
         # Function to get rank for a metric
         def get_rank(metric_name, value):
             if team_overall is None:
@@ -265,7 +265,7 @@ with tab1:
         # Display overall scorecards
         st.subheader("Overall Offensive Tendencies")
         
-        cols = st.columns(6)
+        cols = st.columns(7)
         
         # Total Plays
         with cols[0]:
@@ -275,9 +275,21 @@ with tab1:
                     <div class="scorecard-label">Total Plays</div>
                 </div>
             """, unsafe_allow_html=True)
+
+        # Motion %
+        with cols[1]:
+            motion_rank = get_rank('Motion_Pct', team_overall['Motion_Pct']) if team_overall is not None else "-"
+            rank_display = f"({motion_rank})" if motion_rank != "-" else ""
+            st.markdown(f"""
+                <div class="scorecard">
+                    <div class="scorecard-value">{overall['motion_pct']:.1f}%</div>
+                    <div class="scorecard-label">Shift/Motion %</div>
+                    <div class="scorecard-rank">{rank_display}</div>
+                </div>
+            """, unsafe_allow_html=True)
         
         # Run %
-        with cols[1]:
+        with cols[2]:
             run_rank = get_rank('Run_Pct', team_overall['Run_Pct']) if team_overall is not None else "-"
             rank_display = f"({run_rank})" if run_rank != "-" else ""
             st.markdown(f"""
@@ -289,9 +301,9 @@ with tab1:
             """, unsafe_allow_html=True)
         
         # PA %
-        with cols[2]:
+        with cols[3]:
             pa_rank = get_rank('PA_Pct', team_overall['PA_Pct']) if team_overall is not None else "-"
-            rank_display = f"({pa_rank})" if run_rank != "-" else ""
+            rank_display = f"({pa_rank})" if pa_rank != "-" else ""
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['pa_pct']:.1f}%</div>
@@ -301,9 +313,9 @@ with tab1:
             """, unsafe_allow_html=True)
         
         # DB %
-        with cols[3]:
+        with cols[4]:
             db_rank = get_rank('DB_Pct', team_overall['DB_Pct']) if team_overall is not None else "-"
-            rank_display = f"({db_rank})" if run_rank != "-" else ""
+            rank_display = f"({db_rank})" if db_rank != "-" else ""
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['db_pct']:.1f}%</div>
@@ -311,21 +323,21 @@ with tab1:
                     <div class="scorecard-rank">{rank_display}</div>
                 </div>
             """, unsafe_allow_html=True)
-        
-        # Motion %
-        with cols[4]:
-            motion_rank = get_rank('Motion_Pct', team_overall['Motion_Pct']) if team_overall is not None else "-"
-            rank_display = f"({motion_rank})" if run_rank != "-" else ""
+
+        # Screen %
+        with cols[5]:
+            screen_rank = get_rank('Screen_Pct', team_overall['Screen_Pct']) if team_overall is not None else "-"
+            rank_display = f"({screen_rank})" if screen_rank != "-" else ""
             st.markdown(f"""
                 <div class="scorecard">
-                    <div class="scorecard-value">{overall['motion_pct']:.1f}%</div>
-                    <div class="scorecard-label">Motion %</div>
+                    <div class="scorecard-value">{overall['screen_pct']:.1f}%</div>
+                    <div class="scorecard-label">Screen %</div>
                     <div class="scorecard-rank">{rank_display}</div>
                 </div>
             """, unsafe_allow_html=True)
         
         # Top Run Concepts
-        with cols[5]:
+        with cols[6]:
             concepts_display = "<br>".join(overall['top_run_concepts'][:3]) if overall['top_run_concepts'] else "N/A"
             st.markdown(f"""
                 <div class="scorecard">
@@ -349,6 +361,9 @@ with tab1:
             personnel_df['Usage_Display'] = personnel_df.apply(
                 lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
             )
+            personnel_df['Motion_Display'] = personnel_df.apply(
+                lambda row: f"{row['Motion_Pct']:.1f}%", axis=1
+            )
             personnel_df['Run_Display'] = personnel_df.apply(
                 lambda row: f"{row['Run_Pct']:.1f}%", axis=1
             )
@@ -358,21 +373,22 @@ with tab1:
             personnel_df['DB_Display'] = personnel_df.apply(
                 lambda row: f"{row['DB_Pct']:.1f}%", axis=1
             )
-            personnel_df['Motion_Display'] = personnel_df.apply(
-                lambda row: f"{row['Motion_Pct']:.1f}%", axis=1
+            personnel_df['Screen_Display'] = personnel_df.apply(
+                lambda row: f"{row['Screen_Pct']:.1f}%", axis=1
             )
             
             # Display table
             display_df = personnel_df[[
-                'Category', 'Plays', 'Usage_Display', 'Run_Display', 
-                'PA_Display', 'DB_Display', 'Motion_Display', 'Top_Run_Concepts'
+                'Category', 'Plays', 'Usage_Display', 'Motion_Display', 'Run_Display', 
+                'PA_Display', 'DB_Display', 'Screen_Display','Top_Run_Concepts'
             ]].rename(columns={
                 'Category': 'Personnel',
                 'Usage_Display': 'Usage %',
                 'Run_Display': 'Run %',
                 'PA_Display': 'PA %',
                 'DB_Display': 'DB %',
-                'Motion_Display': 'Motion %',
+                'Motion_Display': 'SHFT/MOT %',
+                'Screen_Display': 'Screen %',
                 'Top_Run_Concepts': 'Top Run Concepts'
             })
             
@@ -407,17 +423,21 @@ with tab1:
             formation_df['Motion_Display'] = formation_df.apply(
                 lambda row: f"{row['Motion_Pct']:.1f}%", axis=1
             )
+            formation_df['Screen_Display'] = formation_df.apply(
+                lambda row: f"{row['Screen_Pct']:.1f}%", axis=1
+            )
             
             display_df = formation_df[[
-                'Category', 'Plays', 'Usage_Display', 'Run_Display', 
-                'PA_Display', 'DB_Display', 'Motion_Display', 'Top_Run_Concepts'
+                'Category', 'Plays', 'Usage_Display', 'Motion_Display', 'Run_Display', 
+                'PA_Display', 'DB_Display', 'Screen_Display','Top_Run_Concepts'
             ]].rename(columns={
                 'Category': 'Formation',
                 'Usage_Display': 'Usage %',
                 'Run_Display': 'Run %',
                 'PA_Display': 'PA %',
                 'DB_Display': 'DB %',
-                'Motion_Display': 'Motion %',
+                'Motion_Display': 'SHFT/MOT %',
+                'Screen_Display': 'Screen %',
                 'Top_Run_Concepts': 'Top Run Concepts'
             })
             
@@ -459,17 +479,21 @@ with tab1:
             qb_df['Motion_Display'] = qb_df.apply(
                 lambda row: f"{row['Motion_Pct']:.1f}%", axis=1
             )
+            qb_df['Screen_Display'] = qb_df.apply(
+                lambda row: f"{row['Screen_Pct']:.1f}%", axis=1
+            )
             
             display_df = qb_df[[
-                'Category', 'Plays', 'Usage_Display', 'Run_Display', 
-                'PA_Display', 'DB_Display', 'Motion_Display', 'Top_Run_Concepts'
+                'Category', 'Plays', 'Usage_Display', 'Motion_Display', 'Run_Display', 
+                'PA_Display', 'DB_Display',  'Screen_Display', 'Top_Run_Concepts'
             ]].rename(columns={
                 'Category': 'QB Alignment',
                 'Usage_Display': 'Usage %',
                 'Run_Display': 'Run %',
                 'PA_Display': 'PA %',
                 'DB_Display': 'DB %',
-                'Motion_Display': 'Motion %',
+                'Motion_Display': 'SHFT/MOT %',
+                'Screen_Display': 'Screen %',
                 'Top_Run_Concepts': 'Top Run Concepts'
             })
             
@@ -489,14 +513,16 @@ with tab1:
         with st.expander("Click to view offensive metric explanations"):
             st.markdown("""
             **Usage %** - Percentage of team's total plays using this category
+                        
+            **Motion %** - Percentage of plays in this category that use pre-snap motion or shifts
             
             **Run %** - Percentage of plays in this category that are runs
             
-            **PA %** - Play Action percentage: plays with play action / total plays in category
+            **PA %** - Play Action percentage: plays with play action (minus screens) / total plays in category
             
-            **DB %** - Standard Dropback percentage: dropbacks where QB drops straight back (SD/SR/SL) with no play action / total plays in category
-            
-            **Motion %** - Percentage of plays in this category that use pre-snap motion or shifts
+            **DB %** - Standard Dropback percentage: dropbacks where QB drops straight back (SD/SR/SL) with no play action or screens / total plays in category
+                        
+            **DB %** - Screen percentage: plays that are a designed screen / total plays in category
             
             **Top Run Concepts** - Most common run concepts within this category, shown as percentage of run plays
             - *Outside Zone* - Outside zone blocking scheme
@@ -591,32 +617,8 @@ with tab2:
                 </div>
             """, unsafe_allow_html=True)
         
-        # Blitz %
-        with cols[1]:
-            blitz_rank = get_def_rank('Blitz_Pct', team_def_overall['Blitz_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({blitz_rank})" if blitz_rank != "-" else ""
-            st.markdown(f"""
-                <div class="scorecard">
-                    <div class="scorecard-value">{overall_def['blitz_pct']:.1f}%</div>
-                    <div class="scorecard-label">Blitz %</div>
-                    <div class="scorecard-rank">{rank_display}</div>
-                </div>
-            """, unsafe_allow_html=True)
-        
-        # Man %
-        with cols[2]:
-            man_rank = get_def_rank('Man_Pct', team_def_overall['Man_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({man_rank})" if man_rank != "-" else ""
-            st.markdown(f"""
-                <div class="scorecard">
-                    <div class="scorecard-value">{overall_def['man_pct']:.1f}%</div>
-                    <div class="scorecard-label">Man %</div>
-                    <div class="scorecard-rank">{rank_display}</div>
-                </div>
-            """, unsafe_allow_html=True)
-        
         # MOFO %
-        with cols[3]:
+        with cols[1]:
             mofo_rank = get_def_rank('MOFO_Pct', team_def_overall['MOFO_Pct']) if team_def_overall is not None else "-"
             rank_display = f"({mofo_rank})" if mofo_rank != "-" else ""
             st.markdown(f"""
@@ -627,14 +629,38 @@ with tab2:
                 </div>
             """, unsafe_allow_html=True)
         
-        # Disguise %
-        with cols[4]:
-            disguise_rank = get_def_rank('Disguise_Pct', team_def_overall['Disguise_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({disguise_rank})" if disguise_rank != "-" else ""
+        # Blitz %
+        with cols[2]:
+            blitz_rank = get_def_rank('Blitz_Pct', team_def_overall['Blitz_Pct']) if team_def_overall is not None else "-"
+            rank_display = f"({blitz_rank})" if blitz_rank != "-" else ""
             st.markdown(f"""
                 <div class="scorecard">
-                    <div class="scorecard-value">{overall_def['disguise_pct']:.1f}%</div>
-                    <div class="scorecard-label">Disguise %</div>
+                    <div class="scorecard-value">{overall_def['blitz_pct']:.1f}%</div>
+                    <div class="scorecard-label">Blitz %</div>
+                    <div class="scorecard-rank">{rank_display}</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        # Stunt %
+        with cols[3]:
+            stunt_rank = get_def_rank('Stunt_Pct', team_def_overall['Stunt_Pct']) if team_def_overall is not None else "-"
+            rank_display = f"({stunt_rank})" if stunt_rank != "-" else ""
+            st.markdown(f"""
+                <div class="scorecard">
+                    <div class="scorecard-value">{overall_def['stunt_pct']:.1f}%</div>
+                    <div class="scorecard-label">Stunt %</div>
+                    <div class="scorecard-rank">{rank_display}</div>
+                </div>
+            """, unsafe_allow_html=True)
+        
+        # Man %
+        with cols[4]:
+            man_rank = get_def_rank('Man_Pct', team_def_overall['Man_Pct']) if team_def_overall is not None else "-"
+            rank_display = f"({man_rank})" if man_rank != "-" else ""
+            st.markdown(f"""
+                <div class="scorecard">
+                    <div class="scorecard-value">{overall_def['man_pct']:.1f}%</div>
+                    <div class="scorecard-label">Man %</div>
                     <div class="scorecard-rank">{rank_display}</div>
                 </div>
             """, unsafe_allow_html=True)
@@ -662,29 +688,75 @@ with tab2:
             def_package_df['Usage_Display'] = def_package_df.apply(
                 lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
             )
+            def_package_df['MOFO_Display'] = def_package_df.apply(
+                lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
+            )
             def_package_df['Blitz_Display'] = def_package_df.apply(
                 lambda row: f"{row['Blitz_Pct']:.1f}%", axis=1
+            )
+            def_package_df['Stunt_Display'] = def_package_df.apply(
+                lambda row: f"{row['Stunt_Pct']:.1f}%", axis=1
             )
             def_package_df['Man_Display'] = def_package_df.apply(
                 lambda row: f"{row['Man_Pct']:.1f}%", axis=1
             )
-            def_package_df['MOFO_Display'] = def_package_df.apply(
-                lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
-            )
-            def_package_df['Disguise_Display'] = def_package_df.apply(
-                lambda row: f"{row['Disguise_Pct']:.1f}%", axis=1
-            )
             
             display_df = def_package_df[[
-                'Category', 'Plays', 'Usage_Display', 'Blitz_Display', 
-                'Man_Display', 'MOFO_Display', 'Disguise_Display', 'Top_Coverages'
+                'Category', 'Plays', 'Usage_Display', 'MOFO_Display', 
+                'Blitz_Display', 'Stunt_Display', 'Man_Display', 'Top_Coverages'
             ]].rename(columns={
                 'Category': 'Defensive Package',
                 'Usage_Display': 'Usage %',
-                'Blitz_Display': 'Blitz %',
-                'Man_Display': 'Man %',
                 'MOFO_Display': 'MOFO %',
-                'Disguise_Display': 'Disguise %',
+                'Blitz_Display': 'Blitz %',
+                'Stunt_Display': 'Stunt %',
+                'Man_Display': 'Man %',
+                'Top_Coverages': 'Top Coverages'
+            })
+            
+            # Replace newlines with separator for display
+            display_df_formatted = display_df.copy()
+            display_df_formatted['Top Coverages'] = display_df_formatted['Top Coverages'].str.replace('\n', ' | ')
+            
+            st.dataframe(
+                display_df_formatted,
+                use_container_width=True,
+                hide_index=True
+            )
+        
+        st.markdown("---")
+
+        # Table 2: Front Structure
+        st.markdown("### Defensive Front Tendencies")
+        front_df = calculate_defensive_category_tendencies(df_defense_filtered, 'pff_DEFENSIVE_FRONT_NAME')
+        
+        if len(front_df) > 0:
+            front_df['Usage_Display'] = front_df.apply(
+                lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
+            )
+            front_df['MOFO_Display'] = front_df.apply(
+                lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
+            )
+            front_df['Blitz_Display'] = front_df.apply(
+                lambda row: f"{row['Blitz_Pct']:.1f}%", axis=1
+            )
+            front_df['Stunt_Display'] = front_df.apply(
+                lambda row: f"{row['Stunt_Pct']:.1f}%", axis=1
+            )
+            front_df['Man_Display'] = front_df.apply(
+                lambda row: f"{row['Man_Pct']:.1f}%", axis=1
+            )
+            
+            display_df = front_df[[
+                'Category', 'Plays', 'Usage_Display', 'MOFO_Display', 
+                'Blitz_Display', 'Stunt_Display', 'Man_Display', 'Top_Coverages'
+            ]].rename(columns={
+                'Category': 'Defensive Front',
+                'Usage_Display': 'Usage %',
+                'MOFO_Display': 'MOFO %',
+                'Blitz_Display': 'Blitz %',
+                'Stunt_Display': 'Stunt %',
+                'Man_Display': 'Man %',
                 'Top_Coverages': 'Top Coverages'
             })
             
@@ -700,8 +772,8 @@ with tab2:
         
         st.markdown("---")
         
-        # Table 2: Defensive Package vs Offensive Personnel
-        st.markdown("### Defensive Package vs Offensive Personnel")
+        # Table 3: Defensive Package vs Offensive Personnel
+        st.markdown("### Defensive Tendencies vs Offensive Personnel")
         
         # Get all offensive personnel options (convert to string for consistency)
         all_off_personnel = sorted(df_defense_filtered['pff_OFF_PERSONNEL_GROUP'].dropna().astype(str).unique())
@@ -726,29 +798,29 @@ with tab2:
                     def_vs_personnel_df['Usage_Display'] = def_vs_personnel_df.apply(
                         lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
                     )
+                    def_vs_personnel_df['MOFO_Display'] = def_vs_personnel_df.apply(
+                        lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
+                    )
                     def_vs_personnel_df['Blitz_Display'] = def_vs_personnel_df.apply(
                         lambda row: f"{row['Blitz_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_personnel_df['Stunt_Display'] = def_vs_personnel_df.apply(
+                        lambda row: f"{row['Stunt_Pct']:.1f}%", axis=1
                     )
                     def_vs_personnel_df['Man_Display'] = def_vs_personnel_df.apply(
                         lambda row: f"{row['Man_Pct']:.1f}%", axis=1
                     )
-                    def_vs_personnel_df['MOFO_Display'] = def_vs_personnel_df.apply(
-                        lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
-                    )
-                    def_vs_personnel_df['Disguise_Display'] = def_vs_personnel_df.apply(
-                        lambda row: f"{row['Disguise_Pct']:.1f}%", axis=1
-                    )
                     
                     display_df_vs = def_vs_personnel_df[[
-                        'Category', 'Plays', 'Usage_Display', 'Blitz_Display', 
-                        'Man_Display', 'MOFO_Display', 'Disguise_Display', 'Top_Coverages'
+                        'Category', 'Plays', 'Usage_Display', 'MOFO_Display',
+                        'Blitz_Display', 'Stunt_Display', 'Man_Display', 'Top_Coverages'
                     ]].rename(columns={
                         'Category': 'Defensive Package',
                         'Usage_Display': 'Usage %',
-                        'Blitz_Display': 'Blitz %',
-                        'Man_Display': 'Man %',
                         'MOFO_Display': 'MOFO %',
-                        'Disguise_Display': 'Disguise %',
+                        'Blitz_Display': 'Blitz %',
+                        'Stunt_Display': 'Stunt %',
+                        'Man_Display': 'Man %',
                         'Top_Coverages': 'Top Coverages'
                     })
                     
@@ -761,6 +833,51 @@ with tab2:
                         use_container_width=True,
                         hide_index=True
                     )
+
+                st.markdown("---")
+
+                def_vs_front_df = calculate_defensive_category_tendencies(df_vs_personnel, 'pff_DEFENSIVE_FRONT_NAME')
+                
+                if len(def_vs_front_df) > 0:
+                    def_vs_front_df['Usage_Display'] = def_vs_front_df.apply(
+                        lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_front_df['MOFO_Display'] = def_vs_front_df.apply(
+                        lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_front_df['Blitz_Display'] = def_vs_front_df.apply(
+                        lambda row: f"{row['Blitz_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_front_df['Stunt_Display'] = def_vs_front_df.apply(
+                        lambda row: f"{row['Stunt_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_front_df['Man_Display'] = def_vs_front_df.apply(
+                        lambda row: f"{row['Man_Pct']:.1f}%", axis=1
+                    )
+                    
+                    display_df_vs = def_vs_front_df[[
+                        'Category', 'Plays', 'Usage_Display', 'MOFO_Display',
+                        'Blitz_Display', 'Stunt_Display', 'Man_Display', 'Top_Coverages'
+                    ]].rename(columns={
+                        'Category': 'Defensive Front',
+                        'Usage_Display': 'Usage %',
+                        'MOFO_Display': 'MOFO %',
+                        'Blitz_Display': 'Blitz %',
+                        'Stunt_Display': 'Stunt %',
+                        'Man_Display': 'Man %',
+                        'Top_Coverages': 'Top Coverages'
+                    })
+                    
+                    # Replace newlines with separator for display
+                    display_df_vs_formatted = display_df_vs.copy()
+                    display_df_vs_formatted['Top Coverages'] = display_df_vs_formatted['Top Coverages'].str.replace('\n', ' | ')
+                    
+                    st.dataframe(
+                        display_df_vs_formatted,
+                        use_container_width=True,
+                        hide_index=True
+                    )
+
                 else:
                     st.info(f"No defensive package data vs {selected_off_personnel}")
             else:
@@ -775,14 +892,14 @@ with tab2:
             st.markdown("""
             **Usage %** - Percentage of defensive plays using this package
             
-            **Blitz %** - Percentage of pass plays where defense blitzed / total pass plays
+            **MOFO %** - Middle of Field Open percentage: plays where defense shows middle of the field open safety look pre-snap / total plays
+            
+            **Blitz %** - Percentage of plays where defense blitzes / total plays
+            
+            **Stunt %** - Percentage of plays where defensive line executes a stunt / total plays
             
             **Man %** - Percentage of pass plays using man coverage / total pass plays
             - *Man coverages include:* Cover 0, Cover 1, Cover 1 Double, Cover 2 Man
-            
-            **MOFO %** - Middle of Field Open percentage: pass plays with middle of the field open look / total pass plays
-            
-            **Disguise %** - Percentage of pass plays where pre-snap look (MOFO shown) differed from post-snap coverage (MOFO played) / pass plays
             
             **Top Coverages** - Most common coverage schemes within this category, shown as percentage of pass plays
             - *Cover 0* - Man coverage, no deep safety help
