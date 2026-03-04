@@ -17,14 +17,15 @@
 }
 
 .scorecard-label {
-    font-size: 14px;
+    font-size: 16px;
     color: #666;
     margin-top: 5px;
 }
 
 .scorecard-rank {
     font-size: 12px;
-    color: #999;
+    color: #666;
+    font-weight: 700;
 }
 
 .stDataFrame {
@@ -33,4 +34,104 @@
 
 div[data-testid="stMetricValue"] {
     font-size: 24px;
+}
+
+/* ============================================ */
+/* LARGER TAB TEXT */
+/* ============================================ */
+
+button[data-baseweb="tab"] {
+    font-size: 24px !important;
+    font-weight: 600 !important;
+    padding: 12px 24px !important;
+}
+
+/* ============================================ */
+/* COLOR-CODED RANKINGS IN SCORECARDS */
+/* ============================================ */
+
+.rank-elite {
+    color: #10b981 !important;
+    font-weight: 700;
+}
+
+.rank-poor {
+    color: #ef4444 !important;
+    font-weight: 700;
+}
+
+/* ============================================ */
+/* CUSTOM HTML TABLES - DARK THEME */
+/* ============================================ */
+
+.table-container {
+    overflow-x: auto;
+    margin: 20px 0;
+}
+
+.custom-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    background-color: #0e1117;
+}
+
+.custom-table thead tr {
+    background-color: #1f77b4;
+    color: #ffffff;
+    font-weight: 700;
+    text-transform: uppercase;
+    font-size: 16px;
+    letter-spacing: 0.8px;
+}
+
+.custom-table th,
+.custom-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #262730;
+    color: #fafafa;
+}
+
+.custom-table th {
+    text-align: center;
+    padding: 16px 10px;
+    font-weight: 700;
+    font-size: 16px;
+}
+
+.custom-table th:first-child {
+    border-right: 2px solid #ffffff;
+    text-align: center;
+}
+
+.custom-table th:last-child {
+    text-align: center;
+}
+
+.custom-table tbody tr:nth-child(even) {
+    background-color: #161b22;
+}
+
+.custom-table tbody tr:hover {
+    background-color: #1e2936;
+    transition: background-color 0.2s;
+}
+
+/* Category column (first) - center aligned, bold, shaded */
+.custom-table td.category-col {
+    font-weight: 700;
+    border-right: 2px solid #ffffff;
+    text-align: center;
+    font-size: 16px;
+}
+
+/* Center all middle columns */
+.custom-table td.center-col {
+    text-align: center;
+}
+
+/* Concepts column (last) - left aligned */
+.custom-table td.concepts-col {
+    text-align: left;
 }

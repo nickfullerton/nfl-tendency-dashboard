@@ -15,8 +15,9 @@ from data_processing import (
     calculate_defensive_category_tendencies,
     calculate_all_teams_defensive_tendencies,
     yardline_bucket_to_range,
-    ytg_bucket_to_range
-
+    ytg_bucket_to_range,
+    df_to_html_table,
+    format_rank_with_color_class
 )
 
 # Page configuration
@@ -27,10 +28,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load custom CSS
 def load_css(file_name):
     with open(file_name) as f:
-        st.markdown(f'<style>{f.read()}</style>', unsafe_allow_html=True)
+        css_content = f.read()
+        st.markdown(f'<style>{css_content}</style>', unsafe_allow_html=True)
 
 load_css('styles.css')
 
@@ -99,7 +100,7 @@ if 'selected_team' not in st.session_state:
 # Sidebar filters
 st.sidebar.header("Select Team")
 selected_team = st.sidebar.selectbox(
-    "",
+    "Team",
     options=all_teams,
     index=all_teams.index(st.session_state['selected_team']) if st.session_state['selected_team'] in all_teams else 0,
     key='team_select',
@@ -128,7 +129,7 @@ if 'weeks_multiselect' not in st.session_state:
     st.session_state['weeks_multiselect'] = all_weeks
 
 selected_weeks = st.sidebar.multiselect(
-    "",
+    "Week",
     options=all_weeks,
     key='weeks_multiselect',
     label_visibility="collapsed"
@@ -140,7 +141,7 @@ if 'quarters_segmented' not in st.session_state:
     st.session_state['quarters_segmented'] = [1, 2, 3, 4, 5]
 
 selected_quarters = st.sidebar.segmented_control(
-    "",
+    "Quarter",
     options=[1, 2, 3, 4, 5],
     format_func=lambda x: "OT" if x == 5 else str(x),
     selection_mode="multi",
@@ -154,7 +155,7 @@ if 'time_slider' not in st.session_state:
     st.session_state['time_slider'] = (min_time, max_time)
 
 time_range = st.sidebar.slider(
-    "",
+    "Time",
     min_value=min_time,
     max_value=max_time,
     step=1,
@@ -168,7 +169,7 @@ if 'downs_segmented' not in st.session_state:
     st.session_state['downs_segmented'] = [1, 2, 3, 4, 0]
 
 selected_downs = st.sidebar.segmented_control(
-    "",
+    "Down",
     options=[1,2,3,4,0],
     format_func=lambda x: "K/2PT/PAT" if x == 0 else str(x),
     selection_mode="multi",
@@ -182,7 +183,7 @@ if 'ytg_segmented' not in st.session_state:
     st.session_state['ytg_segmented'] = ["1-2", "3-6", "7-10", "11+"]
 
 ytg_buckets = st.sidebar.segmented_control(
-    "",
+    "Ytg",
     options=["1-2", "3-6", "7-10", "11+"],
     selection_mode="multi",
     label_visibility="collapsed",
@@ -197,7 +198,7 @@ if 'yardline_segmented' not in st.session_state:
     st.session_state['yardline_segmented'] = ["Goal Line", "Low RZ", "High RZ", "Field", "Backed Up"]
 
 yardline_buckets = st.sidebar.segmented_control(
-    "",
+    "Yardline",
     options=["Goal Line", "Low RZ", "High RZ", "Field", "Backed Up"],
     selection_mode="multi",
     label_visibility="collapsed",
@@ -279,7 +280,7 @@ with tab1:
         # Motion %
         with cols[1]:
             motion_rank = get_rank('Motion_Pct', team_overall['Motion_Pct']) if team_overall is not None else "-"
-            rank_display = f"({motion_rank})" if motion_rank != "-" else ""
+            rank_display = format_rank_with_color_class(motion_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['motion_pct']:.1f}%</div>
@@ -291,7 +292,8 @@ with tab1:
         # Run %
         with cols[2]:
             run_rank = get_rank('Run_Pct', team_overall['Run_Pct']) if team_overall is not None else "-"
-            rank_display = f"({run_rank})" if run_rank != "-" else ""
+            rank_display = format_rank_with_color_class(run_rank)
+
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['run_pct']:.1f}%</div>
@@ -303,11 +305,11 @@ with tab1:
         # PA %
         with cols[3]:
             pa_rank = get_rank('PA_Pct', team_overall['PA_Pct']) if team_overall is not None else "-"
-            rank_display = f"({pa_rank})" if pa_rank != "-" else ""
+            rank_display = format_rank_with_color_class(pa_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['pa_pct']:.1f}%</div>
-                    <div class="scorecard-label">PA %</div>
+                    <div class="scorecard-label">Play Action %</div>
                     <div class="scorecard-rank">{rank_display}</div>
                 </div>
             """, unsafe_allow_html=True)
@@ -315,11 +317,11 @@ with tab1:
         # DB %
         with cols[4]:
             db_rank = get_rank('DB_Pct', team_overall['DB_Pct']) if team_overall is not None else "-"
-            rank_display = f"({db_rank})" if db_rank != "-" else ""
+            rank_display = format_rank_with_color_class(db_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['db_pct']:.1f}%</div>
-                    <div class="scorecard-label">Std DB %</div>
+                    <div class="scorecard-label">Standard DB %</div>
                     <div class="scorecard-rank">{rank_display}</div>
                 </div>
             """, unsafe_allow_html=True)
@@ -327,7 +329,7 @@ with tab1:
         # Screen %
         with cols[5]:
             screen_rank = get_rank('Screen_Pct', team_overall['Screen_Pct']) if team_overall is not None else "-"
-            rank_display = f"({screen_rank})" if screen_rank != "-" else ""
+            rank_display = format_rank_with_color_class(screen_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall['screen_pct']:.1f}%</div>
@@ -347,9 +349,7 @@ with tab1:
             """, unsafe_allow_html=True)
                 
         st.markdown("---")
-        
-        # Tendency Tables
-        st.subheader("Detailed Tendency Breakdown")
+
         
         # Table 1: Personnel
         st.markdown("### Personnel Groupings")
@@ -395,11 +395,7 @@ with tab1:
             display_df_formatted = display_df.copy()
             display_df_formatted['Top Run Concepts'] = display_df_formatted['Top Run Concepts'].str.replace('\n', ' | ')
 
-            st.dataframe(
-                display_df_formatted,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.markdown(df_to_html_table(display_df_formatted, "personnel-table"), unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -444,11 +440,7 @@ with tab1:
             display_df_formatted = display_df.copy()
             display_df_formatted['Top Run Concepts'] = display_df_formatted['Top Run Concepts'].str.replace('\n', ' | ')
 
-            st.dataframe(
-                display_df_formatted,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.markdown(df_to_html_table(display_df_formatted, "formation-table"), unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -501,11 +493,7 @@ with tab1:
             display_df_formatted = display_df.copy()
             display_df_formatted['Top Run Concepts'] = display_df_formatted['Top Run Concepts'].str.replace('\n', ' | ')
 
-            st.dataframe(
-                display_df_formatted,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.markdown(df_to_html_table(display_df_formatted, "qb-alignment-table"), unsafe_allow_html=True)
         
         st.markdown("---")
         st.markdown("### Metric Definitions")
@@ -518,7 +506,7 @@ with tab1:
             
             **Run %** - Percentage of plays in this category that are runs
             
-            **PA %** - Play Action percentage: plays with play action (minus screens) / total plays in category
+            **PA %** - Play Action percentage: plays with play action / total plays in category
             
             **DB %** - Standard Dropback percentage: dropbacks where QB drops straight back (SD/SR/SL) with no play action or screens / total plays in category
                         
@@ -620,11 +608,11 @@ with tab2:
         # MOFO %
         with cols[1]:
             mofo_rank = get_def_rank('MOFO_Pct', team_def_overall['MOFO_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({mofo_rank})" if mofo_rank != "-" else ""
+            rank_display = format_rank_with_color_class(mofo_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall_def['mofo_pct']:.1f}%</div>
-                    <div class="scorecard-label">MOFO %</div>
+                    <div class="scorecard-label">Middle of Field Open %</div>
                     <div class="scorecard-rank">{rank_display}</div>
                 </div>
             """, unsafe_allow_html=True)
@@ -632,7 +620,7 @@ with tab2:
         # Blitz %
         with cols[2]:
             blitz_rank = get_def_rank('Blitz_Pct', team_def_overall['Blitz_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({blitz_rank})" if blitz_rank != "-" else ""
+            rank_display = format_rank_with_color_class(blitz_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall_def['blitz_pct']:.1f}%</div>
@@ -644,7 +632,7 @@ with tab2:
         # Stunt %
         with cols[3]:
             stunt_rank = get_def_rank('Stunt_Pct', team_def_overall['Stunt_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({stunt_rank})" if stunt_rank != "-" else ""
+            rank_display = format_rank_with_color_class(stunt_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall_def['stunt_pct']:.1f}%</div>
@@ -656,7 +644,7 @@ with tab2:
         # Man %
         with cols[4]:
             man_rank = get_def_rank('Man_Pct', team_def_overall['Man_Pct']) if team_def_overall is not None else "-"
-            rank_display = f"({man_rank})" if man_rank != "-" else ""
+            rank_display = format_rank_with_color_class(man_rank)
             st.markdown(f"""
                 <div class="scorecard">
                     <div class="scorecard-value">{overall_def['man_pct']:.1f}%</div>
@@ -676,9 +664,6 @@ with tab2:
             """, unsafe_allow_html=True)
         
         st.markdown("---")
-        
-        # Defensive Tables
-        st.subheader("Detailed Defensive Breakdown")
         
         # Table 1: By Defensive Package
         st.markdown("### Defensive Package Tendencies")
@@ -718,11 +703,7 @@ with tab2:
             display_df_formatted = display_df.copy()
             display_df_formatted['Top Coverages'] = display_df_formatted['Top Coverages'].str.replace('\n', ' | ')
             
-            st.dataframe(
-                display_df_formatted,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.markdown(df_to_html_table(display_df_formatted, "def-package-table"), unsafe_allow_html=True)
         
         st.markdown("---")
 
@@ -764,11 +745,7 @@ with tab2:
             display_df_formatted = display_df.copy()
             display_df_formatted['Top Coverages'] = display_df_formatted['Top Coverages'].str.replace('\n', ' | ')
             
-            st.dataframe(
-                display_df_formatted,
-                use_container_width=True,
-                hide_index=True
-            )
+            st.markdown(df_to_html_table(display_df_formatted, "def-front-table"), unsafe_allow_html=True)
         
         st.markdown("---")
         
@@ -828,11 +805,7 @@ with tab2:
                     display_df_vs_formatted = display_df_vs.copy()
                     display_df_vs_formatted['Top Coverages'] = display_df_vs_formatted['Top Coverages'].str.replace('\n', ' | ')
                     
-                    st.dataframe(
-                        display_df_vs_formatted,
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    st.markdown(df_to_html_table(display_df_vs_formatted, "def-package-vs-table"), unsafe_allow_html=True)
 
                 st.markdown("---")
 
@@ -872,11 +845,7 @@ with tab2:
                     display_df_vs_formatted = display_df_vs.copy()
                     display_df_vs_formatted['Top Coverages'] = display_df_vs_formatted['Top Coverages'].str.replace('\n', ' | ')
                     
-                    st.dataframe(
-                        display_df_vs_formatted,
-                        use_container_width=True,
-                        hide_index=True
-                    )
+                    st.markdown(df_to_html_table(display_df_vs_formatted, "def-front-vs-table"), unsafe_allow_html=True)
 
                 else:
                     st.info(f"No defensive package data vs {selected_off_personnel}")

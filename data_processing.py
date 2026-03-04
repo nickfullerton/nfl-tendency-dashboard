@@ -114,11 +114,6 @@ def add_calculated_columns(df: pd.DataFrame) -> pd.DataFrame:
     df['is_screen'] = df['pff_SCREEN'].fillna(0).astype(int)
     df['is_play_action'] = df['pff_PLAYACTION'].fillna(0).astype(int)
 
-    df['is_play_action'] = (
-        (df['is_play_action'] == 1) &
-        (df['pff_SCREEN'] == 0)
-    ).astype(int)
-
     df['is_standard_dropback'] = (
         (df['pff_DROPBACKTYPE'].isin(['SD', 'SR', 'SL'])) & 
         (df['pff_PLAYACTION'] == 0) &
@@ -788,3 +783,64 @@ def ytg_bucket_to_range(buckets):
             ranges.extend(range(11, 100))
     
     return (min(ranges), max(ranges))
+
+def df_to_html_table(df, table_id="table"):
+    """Convert DataFrame to styled HTML table"""
+    html = f'<div class="table-container"><table class="custom-table" id="{table_id}">'
+    
+    # Headers
+    html += '<thead><tr>'
+    for col in df.columns:
+        html += f'<th>{col}</th>'
+    html += '</tr></thead>'
+    
+    # Body
+    html += '<tbody>'
+    for idx, row in df.iterrows():
+        html += '<tr>'
+        for i, val in enumerate(row):
+            # First column = left align, last column = left align, rest = center
+            if i == 0:
+                cell_class = 'category-col'
+            elif i == len(row) - 1:
+                cell_class = 'concepts-col'
+            else:
+                cell_class = 'center-col'
+            
+            html += f'<td class="{cell_class}">{val}</td>'
+        html += '</tr>'
+    html += '</tbody>'
+    html += '</table></div>'
+    
+    return html
+
+def format_rank_with_color_class(rank: str) -> str:
+    """
+    Format rank with color class for HTML display.
+    Top 5 = green, bottom 5 = red, rest = default.
+    
+    Args:
+        rank: Rank string (e.g., "12" or "t-5")
+        
+    Returns:
+        HTML formatted rank with color class
+    """
+    if rank == "-" or rank == "":
+        return ""
+    
+    try:
+        # Extract numeric value
+        rank_num = int(rank.replace('t-', ''))
+        
+        # Determine color class
+        if rank_num <= 5:
+            rank_class = "rank-elite"
+        elif rank_num >= 28:
+            rank_class = "rank-poor"
+        else:
+            return f"({rank})"  # No color class
+        
+        return f'<span class="{rank_class}">({rank})</span>'
+    
+    except:
+        return f"({rank})"
