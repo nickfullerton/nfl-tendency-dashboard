@@ -356,8 +356,9 @@ with tab1:
         personnel_df = calculate_category_tendencies(df_filtered, 'pff_OFF_PERSONNEL_GROUP')
         
         if len(personnel_df) > 0:
-            # Add rankings (simplified for now - would need all teams data by category)
-            # For MVP, we'll add placeholder rankings
+            
+            personnel_df = personnel_df[personnel_df['Plays'] >= 10]
+
             personnel_df['Usage_Display'] = personnel_df.apply(
                 lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
             )
@@ -443,8 +444,57 @@ with tab1:
             st.markdown(df_to_html_table(display_df_formatted, "formation-table"), unsafe_allow_html=True)
         
         st.markdown("---")
+
+        # Table 3: Formation Name (Top 10)
+        st.markdown("### Formation Name (Top 10)")
+        formation_name_df = calculate_category_tendencies(df_filtered, 'pff_OFFENSIVE_FORMATION_NAME')
         
-        # Table 3: QB Alignment
+        if len(formation_name_df) > 0:
+            # Keep only top 10 by usage
+            formation_name_df = formation_name_df.head(10)
+            
+            formation_name_df['Usage_Display'] = formation_name_df.apply(
+                lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
+            )
+            formation_name_df['Run_Display'] = formation_name_df.apply(
+                lambda row: f"{row['Run_Pct']:.1f}%", axis=1
+            )
+            formation_name_df['PA_Display'] = formation_name_df.apply(
+                lambda row: f"{row['PA_Pct']:.1f}%", axis=1
+            )
+            formation_name_df['DB_Display'] = formation_name_df.apply(
+                lambda row: f"{row['DB_Pct']:.1f}%", axis=1
+            )
+            formation_name_df['Screen_Display'] = formation_name_df.apply(
+                lambda row: f"{row['Screen_Pct']:.1f}%", axis=1
+            )
+            formation_name_df['Motion_Display'] = formation_name_df.apply(
+                lambda row: f"{row['Motion_Pct']:.1f}%", axis=1
+            )
+            
+            display_df = formation_name_df[[
+                'Category', 'Plays', 'Usage_Display', 'Run_Display', 
+                'PA_Display', 'DB_Display', 'Screen_Display', 'Motion_Display', 'Top_Run_Concepts'
+            ]].rename(columns={
+                'Category': 'Formation Name',
+                'Usage_Display': 'Usage %',
+                'Run_Display': 'Run %',
+                'PA_Display': 'PA %',
+                'DB_Display': 'DB %',
+                'Screen_Display': 'Screen %',
+                'Motion_Display': 'Motion %',
+                'Top_Run_Concepts': 'Top Run Concepts'
+            })
+            
+            # Replace newlines with separator
+            display_df_formatted = display_df.copy()
+            display_df_formatted['Top Run Concepts'] = display_df_formatted['Top Run Concepts'].str.replace('\n', ' | ')
+            
+            st.markdown(df_to_html_table(display_df_formatted, "formation-name-table"), unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        # Table 4: QB Alignment
         st.markdown("### QB Alignment")
         
        # Create QB alignment category: Shotgun vs Under Center
@@ -520,6 +570,8 @@ with tab1:
             - *Counter* - Counter run concept
             
             **Rankings** - Rank among all 32 teams with same filters applied (t- indicates tie)
+                        
+            **Formation Info** - https://profootballfocus.zendesk.com/hc/en-us/articles/360034648593-Formations
             """)
 
 with tab2:
@@ -712,6 +764,9 @@ with tab2:
         front_df = calculate_defensive_category_tendencies(df_defense_filtered, 'pff_DEFENSIVE_FRONT_NAME')
         
         if len(front_df) > 0:
+
+            front_df = front_df[front_df['Plays'] >= 10]
+
             front_df['Usage_Display'] = front_df.apply(
                 lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
             )
@@ -812,6 +867,9 @@ with tab2:
                 def_vs_front_df = calculate_defensive_category_tendencies(df_vs_personnel, 'pff_DEFENSIVE_FRONT_NAME')
                 
                 if len(def_vs_front_df) > 0:
+
+                    def_vs_front_df = def_vs_front_df[def_vs_front_df['Plays'] >= 10]
+
                     def_vs_front_df['Usage_Display'] = def_vs_front_df.apply(
                         lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
                     )
@@ -855,6 +913,73 @@ with tab2:
             st.info("No offensive personnel data available")
 
         st.markdown("---")
+        
+        # Table 4 Section: Defensive Front vs Offensive Formation Name
+        st.markdown("### Defensive Front vs Offensive Formation Name")
+        
+        # Get all offensive formation names
+        all_off_formations = sorted(df_defense_filtered['pff_OFFENSIVE_FORMATION_NAME'].dropna().astype(str).unique())
+        
+        # Default to "SLOT - SLOT" if available, otherwise first option
+        default_formation = "SLOT - SLOT" if "SLOT - SLOT" in all_off_formations else (all_off_formations[0] if len(all_off_formations) > 0 else None)
+        
+        if default_formation:
+            selected_off_formation = st.selectbox(
+                "Select Offensive Formation Name to Analyze Against",
+                options=all_off_formations,
+                index=all_off_formations.index(default_formation) if default_formation in all_off_formations else 0
+            )
+            
+            # Filter to only plays vs selected offensive formation
+            df_vs_formation = df_defense_filtered[df_defense_filtered['pff_OFFENSIVE_FORMATION_NAME'].astype(str) == selected_off_formation]
+            
+            if len(df_vs_formation) > 0:
+                def_vs_formation_df = calculate_defensive_category_tendencies(df_vs_formation, 'pff_DEFENSIVE_FRONT_NAME')
+                
+                if len(def_vs_formation_df) > 0:
+
+                    def_vs_formation_df['Usage_Display'] = def_vs_formation_df.apply(
+                        lambda row: f"{row['Usage_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_formation_df['MOFO_Display'] = def_vs_formation_df.apply(
+                        lambda row: f"{row['MOFO_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_formation_df['Blitz_Display'] = def_vs_formation_df.apply(
+                        lambda row: f"{row['Blitz_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_formation_df['Stunt_Display'] = def_vs_formation_df.apply(
+                        lambda row: f"{row['Stunt_Pct']:.1f}%", axis=1
+                    )
+                    def_vs_formation_df['Man_Display'] = def_vs_formation_df.apply(
+                        lambda row: f"{row['Man_Pct']:.1f}%", axis=1
+                    )
+                    
+                    display_df_vs_form = def_vs_formation_df[[
+                        'Category', 'Plays', 'Usage_Display', 'MOFO_Display',
+                        'Blitz_Display', 'Stunt_Display', 'Man_Display', 'Top_Coverages'
+                    ]].rename(columns={
+                        'Category': 'Defensive Front',
+                        'Usage_Display': 'Usage %',
+                        'MOFO_Display': 'MOFO %',
+                        'Blitz_Display': 'Blitz %',
+                        'Stunt_Display': 'Stunt %',
+                        'Man_Display': 'Man %',
+                        'Top_Coverages': 'Top Coverages'
+                    })
+                    
+                    # Replace newlines with separator
+                    display_df_vs_form_formatted = display_df_vs_form.copy()
+                    display_df_vs_form_formatted['Top Coverages'] = display_df_vs_form_formatted['Top Coverages'].str.replace('\n', ' | ')
+                    
+                    st.markdown(df_to_html_table(display_df_vs_form_formatted, "def-front-vs-formation-table"), unsafe_allow_html=True)
+                else:
+                    st.info(f"No defensive front data vs {selected_off_formation}")
+            else:
+                st.info(f"No plays found vs {selected_off_formation}")
+        else:
+            st.info("No offensive formation data available")
+
+        st.markdown("---")
         st.markdown("### Metric Definitions")
         
         with st.expander("Click to view defensive metric explanations"):
@@ -880,7 +1005,10 @@ with tab2:
             
             **Rankings** - Rank among all 32 teams with same filters applied (t- indicates tie)
             
-            **Table 2 Filter** - Shows defensive tendencies specifically against the selected offensive personnel grouping
+            **Personnel Filter** - Shows defensive tendencies specifically against the selected offensive personnel grouping
+            **Formation Filter** - Shows defensive tendencies specifically against the selected formation
+                        
+            **Formation Info** - https://profootballfocus.zendesk.com/hc/en-us/articles/360034648593-Formations
             """)
 
 # Footer
